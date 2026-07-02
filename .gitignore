@@ -37,3 +37,7 @@ install_token
 
 # Logs
 *.log
+
+
+assignment*
+transcript*
