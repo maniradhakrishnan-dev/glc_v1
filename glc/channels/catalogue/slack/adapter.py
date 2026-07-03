@@ -142,9 +142,19 @@ class Adapter(ChannelAdapter):
 
         trust_level = classify("slack", user_id)
 
-        store = get_pairing_store()
-        rec = store.lookup("slack", user_id)
-        user_handle = rec.user_handle if rec else ""
+        # Handle disconnect gracefully — do NOT raise
+        if mock is not None and mock.pop_disconnect():
+            return ChannelMessage(
+                channel="slack",
+                channel_user_id="unknown",
+                user_handle="unknown",
+                text="",
+                trust_level="untrusted",
+                arrived_at=datetime.now(UTC),
+            )
+
+        # Unwrap Slack's event_callback wrapper
+        event = raw.get("event", raw)
 
         is_public_channel = bool(self.config.get("is_public_channel", False))
         if is_public_channel and trust_level == "untrusted":
@@ -180,8 +190,9 @@ class Adapter(ChannelAdapter):
             voice_audio_ref=None,
             thread_id=event.thread_ts,
             trust_level=trust_level,
-            arrived_at=arrived_at,
-            metadata=metadata,
+            arrived_at=datetime.now(UTC),
+            thread_id=thread_ts,
+            metadata={"slack_channel_id": channel_id},
         )
 
     async def _open_dm(self, user_id: str, token: str) -> str | None:
